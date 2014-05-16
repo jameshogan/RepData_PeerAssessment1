@@ -1,20 +1,111 @@
-# Reproducible Research: Peer Assessment 1
-
+Reproducible Research Project 1
+========================================================
 
 ## Loading and preprocessing the data
+```{r}
+activity <- read.csv("~/Desktop/Coursera/activity.csv")
+```
 
+## What is the mean total of steps taken per day?
+```{r}
+daySteps <- aggregate(steps~date, data = activity, FUN = sum)
+summary(daySteps)
+```
 
-
-## What is mean total number of steps taken per day?
-
-
+```{r}
+# Histogram of the total number of steps taken each day
+hist(daySteps$steps, breaks = nrow(daySteps), xlab = "steps per day", main = NULL, col = "grey")
+```
+## What are the mean and median number of steps per day?
+```{r}
+mean <- mean(daySteps$steps)
+median <- median(daySteps$steps)
+```
+The mean total number of steps in a given day is `r format(mean, scientific = F)`.
+The median total number of steps taken per day is `r median`.
 
 ## What is the average daily activity pattern?
+```{r}
+intervalSteps <- aggregate(steps~interval, data=activity, FUN = sum)
+```
 
+```{r}
+# make a time series plot of the 5-min interval
+plot(intervalSteps, xlab = "Interval (Time)", ylab ="Average Number of Steps Taken", type ="l")
+```
 
+```{r}
+# find the interval with the maximum number of steps
+max <- intervalSteps[which.max(intervalSteps$steps), "interval"]
+```
+The inverval containing the maximum number of steps is `r max`.
 
 ## Imputing missing values
+```{r}
+# calculate the total number of missing values in the dataset
+missing <- sum(is.na(activity))
+```
+The total number of missing values is `r missing`.
+These missing values will be replaced with the daily mean value of the corresponding 5- minuite interval. 
 
+```{r}
+# create new dataset
+daySteps.2 <- numeric()
+for(i in 1:nrow(activity)){
+    x.dat <- activity[i,]
+    if (is.na(x.dat$steps)){
+    steps <- subset(intervalSteps,interval==x.dat$interval)$steps
+    } else {
+        steps <- x.dat$steps
+    }
+    daySteps.2 <- c(daySteps.2, steps)
+}
+newActivity <- activity
+newActivity$steps <- daySteps.2
 
+# find the total number of steps taken per day with the new data
+newDaySteps <- aggregate(steps~date, data = newActivity, FUN = sum)
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+# histogram with the new dataset
+hist(newDaySteps$steps, breaks = nrow(newDaySteps), col = "grey", xlab = "Steps Taken per Day (with NA data)", main = NULL)
+```
+
+```{r}
+# recalculating mean and median
+newMean <- mean(newDaySteps$steps)
+newMedian <- median(newDaySteps$steps)
+```
+The mean number of steps taken using the new dataset, where NA values were replaced with averages, is `r format(newMean, scientific = F)`.
+The median number of steps taken using the new dataset, where NA values were replaced with averages, is `r format(newMedian, scientific = F)`.
+
+After replacing missing step data with averaged values generated from the data, the mean mean number of steps taken per day did not change.  However, the median number of steps taken per day did increase from `r median` to `r format(newMedian, scientific = F)`.
+
+## Are there differences in activity patterns between weekdays and weekends? 
+```{r}
+# create new factor varialbe for weekdays and weekends from date column
+wd <- activity$date
+wd <- strptime(wd, "%Y-%m-%d")
+wd <- weekdays(wd)
+wd <- as.character(wd)
+for (i in 1:length(wd)){
+      if(wd[i]=="Saturday" | wd[i]=="Sunday") {
+            wd[i] <- "weekend"
+      } else {
+            wd[i] <- "weekday"
+      }
+}
+wd <- factor(wd)
+
+newActivity$wd <- wd
+```
+
+```{r}
+# making panel plot for weekdays vs. weekends
+require(plyr)
+require(lattice)
+wdMeanSteps <- ddply(newActivity, .(interval, wd), summarize, steps = mean(steps))
+xyplot(steps~interval | wd, data = wdMeanSteps, type = "l", layout = c(1,2), ylab = "Number of Steps", xlab = "Inverval", main = "Weekend vs. Weekday Activity Patterns")
+```
+According to the data, there do not appear to be differences in weekend and weekday activity patterns. 
